@@ -116,6 +116,11 @@ h3 { font-size: 18px; font-weight: 600; text-transform: uppercase; color: var(--
 .nav a { padding: 6px 12px; border-radius: 999px; color: rgba(255, 255, 255, 0.7); font-size: 14px; font-weight: 500; white-space: nowrap; }
 .nav a:hover { color: #fff; text-decoration: none; background: rgba(255, 255, 255, 0.08); }
 .nav a.on { color: #000; background: #fff; }
+.menu-btn { display: none; background: none; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; width: 40px; height: 40px; cursor: pointer; padding: 0; flex: none; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+.menu-btn span { display: block; width: 18px; height: 2px; background: #fff; border-radius: 1px; transition: transform 0.15s, opacity 0.15s; }
+.menu-btn[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.menu-btn[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.menu-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 .theme-btn { background: none; border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 18px; line-height: 1; flex: none; }
 
 main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
@@ -315,6 +320,18 @@ footer a { text-decoration: underline; }
   .logo-lg { width: 44px; height: 44px; }
   .game-row { grid-template-columns: 56px 1fr auto 24px; gap: 8px; padding: 10px 12px; }
   .brand span.full { display: none; }
+  .top-in { gap: 10px; }
+  .brand { flex: 1; }
+  .menu-btn { display: flex; }
+  .theme-btn { width: 40px; height: 40px; }
+  .nav {
+    display: none; position: absolute; top: 56px; left: 0; right: 0;
+    flex-direction: column; gap: 2px; padding: 8px 16px 16px;
+    background: var(--hero-bg); border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  }
+  .nav.open { display: flex; }
+  .nav a { padding: 12px 14px; border-radius: 10px; font-size: 16px; color: rgba(255, 255, 255, 0.85); }
   .cmp { grid-template-columns: 40px 1fr 80px 1fr 40px; gap: 6px; }
   input.search { min-width: 0; width: 100%; }
 }

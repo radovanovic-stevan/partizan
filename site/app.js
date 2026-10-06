@@ -839,6 +839,18 @@
   }
 
   // theme toggle (per-viewer convenience only)
+  // burger menu (shown on narrow screens only)
+  const nav = document.getElementById("nav"), menuBtn = document.getElementById("menu");
+  const setMenu = (open) => {
+    nav.classList.toggle("open", open);
+    menuBtn.setAttribute("aria-expanded", String(open));
+    menuBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  };
+  menuBtn.addEventListener("click", () => setMenu(!nav.classList.contains("open")));
+  nav.addEventListener("click", (e) => { if (e.target.closest("a")) setMenu(false); });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".top")) setMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+
   const btn = document.getElementById("theme");
   const applyTheme = (t) => {
     if (t) document.documentElement.dataset.theme = t;
