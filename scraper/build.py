@@ -48,6 +48,15 @@ def title_name(el_name):
                     for w in el_name.split()).replace("Mc", "Mc")
 
 
+# the EuroLeague feed sometimes spells the same coach differently
+COACH_ALIASES = {"Zelimir Obradovic": "Zeljko Obradovic"}
+
+
+def coach_name(raw):
+    name = title_name(raw)
+    return COACH_ALIASES.get(name, name)
+
+
 def minutes(s):
     if not s or s in ("DNP",):
         return 0.0
@@ -158,7 +167,7 @@ def build_europe(games, boxes, bios):
                 tot = el_totals(st["totr"])
                 tot["teamReb"] = (st.get("tmr") or {}).get("TotalRebounds", 0)
                 teams.append({"name": home["name"] if tcode == home["code"] else away["name"],
-                              "code": tcode, "coach": title_name(st.get("Coach") or ""),
+                              "code": tcode, "coach": coach_name(st.get("Coach") or ""),
                               "players": plist, "tot": tot, "par": tcode == "PAR"})
             teams.sort(key=lambda t: 0 if t["code"] == home["code"] else 1)
             shots = []
