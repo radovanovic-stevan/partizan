@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Partizan Five Seasons</title>
+  <meta name="description" content="Every BC Partizan game from 2021-22 to 2025-26: results, full box scores, shot charts, player stats and records across the ABA League, EuroLeague and EuroCup.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 20'%3E%3Crect width='16' height='20' rx='2' fill='%23000'/%3E%3Cpath d='M2 0h2v20H2zM6 0h2v20H6zM10 0h2v20h-2zM14 0h2v20h-2z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-in">
+      <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true"></span>Partizan <span class="full">&nbsp;· 5 seasons</span></a>
+      <nav class="nav">
+        <a href="#/" data-v="home">Overview</a>
+        <a href="#/season" data-v="season">Seasons</a>
+        <a href="#/players" data-v="players">Players</a>
+        <a href="#/records" data-v="records">Records</a>
+        <a href="#/opponents" data-v="opponents">Opponents</a>
+      </nav>
+      <button class="theme-btn" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+    </div>
+  </header>
+  <main id="main"><div class="loading">Loading…</div></main>
+  <footer>
+    Data: <a href="https://www.euroleaguebasketball.net/" target="_blank" rel="noopener">EuroLeague Basketball</a> (EuroLeague, EuroCup) and
+    <a href="https://www.aba-liga.com/" target="_blank" rel="noopener">ABA League</a> (ABA League, ABA Supercup), fetched once and archived on <span id="built"></span>.
+    Unofficial fan project, not affiliated with KK Partizan.
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
