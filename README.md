@@ -38,5 +38,5 @@ Python 3.9+, standard library only.
 
 ## Deploy
 
-`.github/workflows/pages.yml` publishes `site/` to GitHub Pages on every push to `main` (and to the branch this was built on).
+`.github/workflows/pages.yml` publishes `site/` to GitHub Pages on every push to `main`.
 In the repository settings, set **Pages → Source** to **GitHub Actions** if the workflow can't enable it itself.

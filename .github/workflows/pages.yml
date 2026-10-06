@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/partizan-data-scraping-website-ns7svu]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
