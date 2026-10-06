@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fetch import ABA_COMPS, ABA_SEASONS, EUROPE, RAW
+from fetch import ABA_COMPS, ABA_SEASONS, CURRENT, EUROPE, RAW
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "data"
@@ -512,7 +512,7 @@ def main():
                                               separators=(",", ":"), ensure_ascii=False))
     (OUT / "players.json").write_text(json.dumps(players, separators=(",", ":"), ensure_ascii=False))
     meta = {"built": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "seasons": [s for s, *_ in EUROPE], "games": len(games), "players": len(players)}
+            "current": CURRENT, "seasons": [s for s, *_ in EUROPE], "games": len(games), "players": len(players)}
     (OUT / "meta.json").write_text(json.dumps(meta))
     print(f"{len(games)} games, {len(players)} players")
 

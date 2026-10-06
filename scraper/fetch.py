@@ -1,12 +1,13 @@
-"""Download raw data for BC Partizan's last five seasons and store it under data/raw.
+"""Download raw data for BC Partizan games and store it under data/raw.
 
 Sources:
   * EuroLeague / EuroCup  - api-live.euroleague.net (schedule, rosters) and
                              live.euroleague.net/api (box score, header, shots)
   * ABA League + Supercup  - www.aba-liga.com (calendar and match pages)
 
-Everything is cached: a file that already exists is never fetched again, so the
-script can be re-run safely to fill gaps. Raw payloads are gzipped.
+Box scores are cached: a file that already exists is never fetched again. For the
+season in progress (CURRENT) the schedule, calendar and roster are fetched again on
+every run, so re-running the script picks up newly played games. Raw payloads are gzipped.
 """
 import gzip
 import json
@@ -26,9 +27,11 @@ EUROPE = [
     ("2023-24", "E", "E2023"),
     ("2024-25", "E", "E2024"),
     ("2025-26", "E", "E2025"),
+    ("2026-27", "E", "E2026"),
 ]
-# aba-liga.com season ids: 21 = 2021/22 ... 25 = 2025/26
-ABA_SEASONS = {21: "2021-22", 22: "2022-23", 23: "2023-24", 24: "2024-25", 25: "2025-26"}
+# aba-liga.com season ids: 21 = 2021/22 ... 26 = 2026/27
+ABA_SEASONS = {21: "2021-22", 22: "2022-23", 23: "2023-24", 24: "2024-25", 25: "2025-26", 26: "2026-27"}
+CURRENT = "2026-27"
 # aba-liga.com competition ids
 ABA_COMPS = {1: ("calendar", "ABA League"), 3: ("calendar-supercup", "ABA Supercup")}
 
@@ -48,8 +51,8 @@ def get(url, retries=4):
     raise RuntimeError(f"failed to fetch {url}")
 
 
-def cached(path: Path, url: str, delay=0.4) -> bytes:
-    if path.exists():
+def cached(path: Path, url: str, delay=0.4, refresh=False) -> bytes:
+    if path.exists() and not refresh:
         return gzip.decompress(path.read_bytes())
     print(f"GET {url}")
     body = get(url)
@@ -62,11 +65,14 @@ def cached(path: Path, url: str, delay=0.4) -> bytes:
 def fetch_europe():
     for label, comp, code in EUROPE:
         base = RAW / "euroleague" / code
+        live = label == CURRENT
         games = json.loads(cached(
             base / "games.json.gz",
-            f"https://api-live.euroleague.net/v2/competitions/{comp}/seasons/{code}/games?teamCode=PAR"))
+            f"https://api-live.euroleague.net/v2/competitions/{comp}/seasons/{code}/games?teamCode=PAR",
+            refresh=live))
         cached(base / "roster.json.gz",
-               f"https://api-live.euroleague.net/v2/competitions/{comp}/seasons/{code}/clubs/PAR/people")
+               f"https://api-live.euroleague.net/v2/competitions/{comp}/seasons/{code}/clubs/PAR/people",
+               refresh=live)
         played = [g for g in games["data"] if g["played"]]
         print(f"{code}: {len(played)} played games")
         for g in played:
@@ -76,15 +82,25 @@ def fetch_europe():
                        f"https://live.euroleague.net/api/{kind}?gamecode={gc}&seasoncode={code}")
 
 
+def played_aba_ids(html, sid, cid):
+    """Partizan match ids from a calendar page, only for games that already have a score."""
+    ids = set()
+    for row in re.split(r"<tr[ >]", html):
+        m = re.search(rf'/match/(\d+)/{sid}/{cid}/Overview/[^"]*partizan[^"]*"', row)
+        score = re.search(r'class="scoretable">\s*<a[^>]*>\s*\d+\s*:\s*\d+', row)
+        if m and score:
+            ids.add(int(m.group(1)))
+    return sorted(ids)
+
+
 def fetch_aba():
     for sid in ABA_SEASONS:
         for cid, (cal, name) in ABA_COMPS.items():
             base = RAW / "aba" / f"{sid}_{cid}"
-            html = cached(base / "calendar.html.gz",
-                          f"https://www.aba-liga.com/{cal}/{sid}/{cid}/").decode("utf-8", "replace")
-            ids = sorted({int(m) for m in re.findall(
-                rf'/match/(\d+)/{sid}/{cid}/Overview/[^"]*partizan[^"]*"', html)})
-            print(f"ABA {name} {sid}: {len(ids)} Partizan games")
+            html = cached(base / "calendar.html.gz", f"https://www.aba-liga.com/{cal}/{sid}/{cid}/",
+                          refresh=ABA_SEASONS[sid] == CURRENT).decode("utf-8", "replace")
+            ids = played_aba_ids(html, sid, cid)
+            print(f"ABA {name} {sid}: {len(ids)} played Partizan games")
             for mid in ids:
                 cached(base / f"{mid}.html.gz",
                        f"https://www.aba-liga.com/match/{mid}/{sid}/{cid}/Boxscore/")

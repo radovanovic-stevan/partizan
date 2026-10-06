@@ -1,4 +1,4 @@
-/* Partizan · five seasons — single-page app, no dependencies. */
+/* Partizan Stats: single-page app, no dependencies. */
 (() => {
   "use strict";
 
@@ -19,14 +19,14 @@
     const [y, m, day] = d.slice(0, 10).split("-").map(Number);
     return short ? `${MONTHS[m - 1]} ${day}` : `${MONTHS[m - 1]} ${day}, ${y}`;
   };
-  const fmt1 = (v) => (v == null || isNaN(v) ? "–" : v.toFixed(1));
-  const pct = (m, a) => (a ? ((100 * m) / a).toFixed(1) : "–");
+  const fmt1 = (v) => (v == null || isNaN(v) ? "-" : v.toFixed(1));
+  const pct = (m, a) => (a ? ((100 * m) / a).toFixed(1) : "-");
   const fmtMin = (m) => {
     if (!m) return "DNP";
     const s = Math.round(m * 60);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
-  const int = (n) => (n == null ? "–" : Math.round(n).toLocaleString("en-US"));
+  const int = (n) => (n == null ? "-" : Math.round(n).toLocaleString("en-US"));
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
   const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("");
   const opp = (g) => (g.parHome ? g.away : g.home);
@@ -91,6 +91,7 @@
     const ph = last.phase;
     const pg = games.filter((g) => g.phase === ph);
     const r = record(pg);
+    if (last.season === S.meta.current) return "In progress";
     if (ph === "Regular Season") return "Regular season";
     if (ph === "Finals" || ph === "Final") return last.win && r.w >= r.l ? "Champions" : "Runner-up";
     return r.w > r.l ? `Reached ${ph}` : `Out in ${ph}`;
@@ -204,7 +205,7 @@
   }
 
   const gameTip = (g) => [
-    tnode("tv", `${signed(margin(g))}  ·  ${par(g).score}–${opp(g).score}`),
+    tnode("tv", `${signed(margin(g))}  ·  ${par(g).score}-${opp(g).score}`),
     tnode("", `${g.win ? "Win" : "Loss"} ${g.parHome ? "vs" : "at"} ${opp(g).name}`),
     tnode("ts", `${g.comp} · ${g.round}`),
     tnode("ts", fmtDate(g.date)),
@@ -310,7 +311,7 @@
       <div class="date">${fmtDate(g.date, true)}<br>${g.date.slice(0, 4)}</div>
       <div class="opp">${logo(o)}<div style="min-width:0"><div class="opp-name">${g.parHome ? "" : '<span class="muted">@ </span>'}${esc(o.name)}</div>
         <div class="meta"><span class="dot" style="background:${compColor(g.comp)}"></span> ${esc(g.comp)} · ${esc(g.round)}</div></div></div>
-      <div class="score">${par(g).score}–${o.score}</div>
+      <div class="score">${par(g).score}-${o.score}</div>
       ${wl(g.win)}
     </a>`;
   }
@@ -346,12 +347,12 @@
 
     main.innerHTML = `
       <section class="hero">
-        <div class="kicker">KK Partizan · Belgrade · ${seasons[0]} – ${seasons[seasons.length - 1]}</div>
-        <h1>Five seasons<br>of Partizan</h1>
-        <p class="lede">Every official game from the ABA League, EuroLeague, EuroCup and ABA Supercup — results, full box scores and every player who wore black and white.</p>
+        <div class="kicker">KK Partizan Belgrade · ${seasons[0]} to ${seasons[seasons.length - 1]}</div>
+        <h1>Partizan<br>Stats</h1>
+        <p class="lede">Results, box scores and player stats from the ABA League, EuroLeague, EuroCup and ABA Supercup.</p>
         <div class="hero-stats">
           <div class="hero-stat"><div class="v">${r.n}</div><div class="l">Games</div></div>
-          <div class="hero-stat"><div class="v">${r.w}–${r.l}</div><div class="l">Record</div></div>
+          <div class="hero-stat"><div class="v">${r.w}-${r.l}</div><div class="l">Record</div></div>
           <div class="hero-stat"><div class="v">${(r.pct * 100).toFixed(1)}%</div><div class="l">Win rate</div></div>
           <div class="hero-stat"><div class="v">${int(pts)}</div><div class="l">Points scored</div></div>
           <div class="hero-stat"><div class="v">${S.players.length}</div><div class="l">Players</div></div>
@@ -360,12 +361,12 @@
       </section>
 
       <section class="section">
-        <div class="section-head"><h2>Seasons</h2><span class="sub">Pick a season for the full game log and player stats</span></div>
+        <div class="section-head"><h2>Seasons</h2></div>
         <div class="grid g5">${seasons.map(seasonCard).join("")}</div>
       </section>
 
       <section class="section">
-        <div class="section-head"><h2>Every game, every margin</h2><span class="sub">${r.n} games in date order · hover for details, click to open the box score</span></div>
+        <div class="section-head"><h2>Point margin by game</h2><span class="sub">Click a bar to open the game</span></div>
         <div class="card pad">
           <div class="legend"><span><i class="sw" style="background:var(--pos)"></i>Win margin</span><span><i class="sw" style="background:var(--neg)"></i>Loss margin</span></div>
           <div id="margin-all"></div>
@@ -373,14 +374,14 @@
       </section>
 
       <section class="section">
-        <div class="section-head"><h2>Five-season leaders</h2><a class="sub" href="#/records">All records →</a></div>
+        <div class="section-head"><h2>Leaders</h2><a class="sub" href="#/records">All records</a></div>
         <div class="grid g4">
           ${leadList("pts", "Points")}${leadList("reb", "Rebounds")}${leadList("ast", "Assists")}${leadList("pir", "PIR")}
         </div>
       </section>
 
       <section class="section">
-        <div class="section-head"><h2>Latest games</h2><a class="sub" href="#/season/${seasons[seasons.length - 1]}">Full season →</a></div>
+        <div class="section-head"><h2>Latest games</h2><a class="sub" href="#/season/${seasons[seasons.length - 1]}">Full season</a></div>
         ${gamesList([...all].slice(-8).reverse(), false)}
       </section>`;
     marginChart(document.getElementById("margin-all"), all, true);
@@ -395,11 +396,11 @@
       const fin = finish(cg);
       return `<div class="comp-line"><span class="dot" style="background:${compColor(c)}"></span>
         <span class="nm">${esc(c)}<span class="finish">${fin === "Champions" ? "🏆 " : ""}${esc(fin)}</span></span>
-        <span class="num">${cr.w}–${cr.l}</span></div>`;
+        <span class="num">${cr.w}-${cr.l}</span></div>`;
     }).join("");
     return `<a class="card season-card" href="#/season/${s}">
       <div class="yr">${s}</div>
-      <div class="rec">${r.w}–${r.l} · ${(r.pct * 100).toFixed(0)}% wins</div>
+      <div class="rec">${r.w}-${r.l} · ${(r.pct * 100).toFixed(0)}% wins</div>
       <div class="bar-track"><div class="bar-fill" style="width:${r.pct * 100}%;background:var(--ink)"></div></div>
       ${lines}</a>`;
   }
@@ -427,15 +428,15 @@
       <div class="filters" id="season-pick"></div>
       <div class="filters" id="comp-pick"></div>
       <div class="grid g4">
-        <div class="card tile"><div class="l">Record</div><div class="v">${r.w}–${r.l}</div><div class="d">${(r.pct * 100).toFixed(1)}% wins</div></div>
-        <div class="card tile"><div class="l">Home / away</div><div class="v">${home.w}–${home.l} <span class="muted" style="font-weight:400">/</span> ${away.w}–${away.l}</div><div class="d">at home / on the road</div></div>
+        <div class="card tile"><div class="l">Record</div><div class="v">${r.w}-${r.l}</div><div class="d">${(r.pct * 100).toFixed(1)}% wins</div></div>
+        <div class="card tile"><div class="l">Home / away</div><div class="v">${home.w}-${home.l} <span class="muted" style="font-weight:400">/</span> ${away.w}-${away.l}</div><div class="d">at home / on the road</div></div>
         <div class="card tile"><div class="l">Points per game</div><div class="v">${fmt1(ppg)}</div><div class="d">${fmt1(oppg)} allowed · ${signed(+(ppg - oppg).toFixed(1))} net</div></div>
-        <div class="card tile"><div class="l">Home attendance</div><div class="v">${att.length ? int(avgAtt) : "–"}</div><div class="d">average over ${att.length} home games</div></div>
-        ${coaches.length ? `<div class="card tile"><div class="l">Head coach</div><div class="v" style="font-size:20px">${esc(coaches.join(", "))}</div><div class="d">per EuroLeague box scores</div></div>` : ""}
+        <div class="card tile"><div class="l">Home attendance</div><div class="v">${att.length ? int(avgAtt) : "-"}</div><div class="d">average over ${att.length} home game${att.length === 1 ? "" : "s"}</div></div>
+        ${coaches.length ? `<div class="card tile"><div class="l">Head coach</div><div class="v" style="font-size:20px">${esc(coaches.join(", "))}</div></div>` : ""}
         <div class="card tile"><div class="l">Form · last 10</div><div class="v"><div class="form">${games.slice(-10).map((g) => wl(g.win)).join("")}</div></div></div>
       </div>
       <section class="section">
-        <div class="section-head"><h2>Game by game</h2><span class="sub">Point margin · click a bar to open the game</span></div>
+        <div class="section-head"><h2>Game by game</h2><span class="sub">Point margin</span></div>
         <div class="card pad"><div class="legend"><span><i class="sw" style="background:var(--pos)"></i>Win margin</span><span><i class="sw" style="background:var(--neg)"></i>Loss margin</span></div><div id="margin-season"></div></div>
       </section>
       <section class="section">
@@ -465,7 +466,7 @@
   async function viewGame(id) {
     const g = S.byId[id];
     if (!g) return notFound();
-    main.innerHTML = `<div class="loading">Loading box score…</div>`;
+    main.innerHTML = `<div class="loading">Loading</div>`;
     const box = await loadBox(id);
     const h = g.home, a = g.away;
     const ot = g.q.length > 4;
@@ -473,7 +474,7 @@
     const idx = sameSeason.indexOf(g);
     const prev = sameSeason[idx - 1], next = sameSeason[idx + 1];
     const qHead = g.q.map((_, i) => `<th class="n">${i < 4 ? "Q" + (i + 1) : "OT" + (g.q.length > 5 ? i - 3 : "")}</th>`).join("");
-    const qRow = (side, t) => `<tr><td><div class="team-cell">${logo(t)}${esc(t.name)}</div></td>${g.q.map((q) => `<td class="n">${q[side] ?? "–"}</td>`).join("")}<td class="n strong">${t.score}</td></tr>`;
+    const qRow = (side, t) => `<tr><td><div class="team-cell">${logo(t)}${esc(t.name)}</div></td>${g.q.map((q) => `<td class="n">${q[side] ?? "-"}</td>`).join("")}<td class="n strong">${t.score}</td></tr>`;
     const h2h = S.games.filter((x) => oppKey(opp(x).name) === oppKey(opp(g).name));
     const h2hR = record(h2h);
 
@@ -495,17 +496,17 @@
           ${g.att ? `<div><div class="k">Attendance</div>${int(g.att)}</div>` : ""}
           ${g.refs.length ? `<div><div class="k">Referees</div>${esc(g.refs.join(", "))}</div>` : ""}
           ${g.coach ? `<div><div class="k">Coaches</div>${esc(box.teams[0].coach)} · ${esc(box.teams[1].coach)}</div>` : ""}
-          <div><div class="k">Head to head (5 seasons)</div>${h2hR.w}–${h2hR.l} vs ${esc(opp(g).name)}</div>
+          <div><div class="k">Head to head</div>${h2hR.w}-${h2hR.l} vs ${esc(opp(g).name)}</div>
           <div><div class="k">Source</div><a href="${esc(g.src)}" target="_blank" rel="noopener">Official box score ↗</a></div>
         </div></div>
       </div>
       <section class="section"><div class="section-head"><h2>Team comparison</h2></div><div class="card pad" id="cmp"></div></section>
       ${box.teams.map((t, i) => `<section class="section"><div class="section-head"><h2>${esc(t.name)}</h2>${t.coach ? `<span class="sub">Coach: ${esc(t.coach)}</span>` : ""}</div><div class="card" id="box-${i}"></div></section>`).join("")}
-      ${box.shots && box.shots.length ? `<section class="section"><div class="section-head"><h2>Shot chart</h2><span class="sub">Field-goal attempts · filled = made, ring = missed</span></div>
+      ${box.shots && box.shots.length ? `<section class="section"><div class="section-head"><h2>Shot chart</h2><span class="sub">Filled = made, ring = missed</span></div>
         <div class="card pad"><div class="filters" id="shot-team"></div><div class="filters" id="shot-player"></div><div class="grid g2" style="align-items:center"><div class="court-wrap" id="court"></div><div id="shot-summary"></div></div></div></section>` : ""}
       <div class="filters" style="margin-top:28px;justify-content:space-between">
-        ${prev ? `<a class="chip" href="#/game/${prev.id}">← ${esc(opp(prev).name)} · ${fmtDate(prev.date, true)}</a>` : "<span></span>"}
-        ${next ? `<a class="chip" href="#/game/${next.id}">${esc(opp(next).name)} · ${fmtDate(next.date, true)} →</a>` : ""}
+        ${prev ? `<a class="chip" href="#/game/${prev.id}">Previous: ${esc(opp(prev).name)} · ${fmtDate(prev.date, true)}</a>` : "<span></span>"}
+        ${next ? `<a class="chip" href="#/game/${next.id}">Next: ${esc(opp(next).name)} · ${fmtDate(next.date, true)}</a>` : ""}
       </div>`;
 
     // comparison bars
@@ -610,23 +611,47 @@
   // ---------------- players index
   function viewPlayers() {
     const seasons = seasonsList();
-    let season = "", q = "";
+    const SORTS = [
+      { value: "gp", label: "Games", show: (t) => `${t.gp} GP` },
+      { value: "pts", label: "Points", show: (t) => `${fmt1(t.pts / t.gp)} PPG` },
+      { value: "reb", label: "Rebounds", show: (t) => `${fmt1(t.reb / t.gp)} RPG` },
+      { value: "ast", label: "Assists", show: (t) => `${fmt1(t.ast / t.gp)} APG` },
+      { value: "stl", label: "Steals", show: (t) => `${fmt1(t.stl / t.gp)} SPG` },
+      { value: "blk", label: "Blocks", show: (t) => `${fmt1(t.blk / t.gp)} BPG` },
+      { value: "f3m", label: "Threes", show: (t) => `${fmt1(t.f3m / t.gp)} 3PM` },
+      { value: "pir", label: "PIR", show: (t) => `${fmt1(t.pir / t.gp)} PIR` },
+      { value: "min", label: "Minutes", show: (t) => `${fmt1(t.min / t.gp)} MIN` },
+      { value: "name", label: "Name" },
+    ];
+    let season = "", q = "", sort = "gp";
     main.innerHTML = `
-      <div class="section-head"><h2 style="font-size:40px">Players</h2><span class="sub">${S.players.length} players appeared for Partizan in ${seasons[0]} – ${seasons[seasons.length - 1]}</span></div>
-      <div class="filters"><input class="search" id="pq" placeholder="Search players…" aria-label="Search players"><span class="sep"></span><span id="ps"></span></div>
+      <div class="section-head"><h2 style="font-size:40px">Players</h2><span class="sub">${S.players.length} players</span></div>
+      <div class="filters"><input class="search" id="pq" placeholder="Search players" aria-label="Search players"><span class="sep"></span><span id="ps"></span></div>
+      <div class="filters"><span class="sub">Sort by</span><span id="psort"></span></div>
       <div class="grid g5" id="plist"></div>`;
     const render = () => {
       chips(document.getElementById("ps"), [{ value: "", label: "All seasons" }, ...seasons.map((s) => ({ value: s, label: s }))], season, (v) => { season = v; render(); });
-      const fq = q.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
-      const list = S.players.filter((p) => (!season || p.lines.some((l) => l.season === season)) &&
-        (!fq || p.n.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().includes(fq)));
-      document.getElementById("plist").innerHTML = list.map((p) => {
-        const lines = season ? p.lines.filter((l) => l.season === season) : p.lines;
-        const gp = lines.reduce((s, l) => s + l.gp, 0), pts = lines.reduce((s, l) => s + l.pts, 0);
+      chips(document.getElementById("psort"), SORTS.map(({ value, label }) => ({ value, label: value === "gp" || value === "name" ? label : `${label} per game` })), sort, (v) => { sort = v; render(); });
+      const fq = q.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const list = S.players
+        .filter((p) => (!season || p.lines.some((l) => l.season === season)) &&
+          (!fq || p.n.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(fq)))
+        .map((p) => {
+          const t = { gp: 0 };
+          (season ? p.lines.filter((l) => l.season === season) : p.lines).forEach((l) => {
+            for (const k in l) if (typeof l[k] === "number") t[k] = (t[k] || 0) + l[k];
+          });
+          return { p, t };
+        });
+      if (sort === "name") list.sort((a, b) => a.p.n.localeCompare(b.p.n));
+      else if (sort === "gp") list.sort((a, b) => b.t.gp - a.t.gp);
+      else list.sort((a, b) => (b.t[sort] || 0) / b.t.gp - (a.t[sort] || 0) / a.t.gp || b.t.gp - a.t.gp);
+      const extra = SORTS.find((x) => x.value === sort && x.show && x.value !== "gp" && x.value !== "pts");
+      document.getElementById("plist").innerHTML = list.map(({ p, t }) => {
         const ss = [...new Set(p.lines.map((l) => l.season))];
         return `<a class="card player-card" href="#/player/${encodeURIComponent(p.k)}">${avatar(p)}<div><div class="pn">${esc(p.n)}</div>
-          <div class="ps">${ss.length > 1 ? `${ss[0]} → ${ss[ss.length - 1]}` : ss[0]}${p.pos ? " · " + esc(p.pos) : ""}</div>
-          <div class="ps">${gp} GP · ${fmt1(pts / (gp || 1))} PPG</div></div></a>`;
+          <div class="ps">${ss.length > 1 ? `${ss[0]} to ${ss[ss.length - 1]}` : ss[0]}${p.pos ? " · " + esc(p.pos) : ""}</div>
+          <div class="ps">${t.gp} GP · ${fmt1(t.pts / (t.gp || 1))} PPG${extra ? " · " + extra.show(t) : ""}</div></div></a>`;
       }).join("") || '<div class="empty">No players match</div>';
     };
     document.getElementById("pq").addEventListener("input", (e) => { q = e.target.value; render(); });
@@ -658,16 +683,16 @@
             ${p.nat ? `<span>Nationality <b>${esc(p.nat)}</b></span>` : ""}
           </div></div></div>
       <div class="grid g4" style="margin-top:22px">
-        <div class="card tile"><div class="l">Games</div><div class="v">${tot.gp}</div><div class="d">${tot.gs} starts · ${tot.w}–${tot.gp - tot.w} record</div></div>
+        <div class="card tile"><div class="l">Games</div><div class="v">${tot.gp}</div><div class="d">${tot.gs} starts · ${tot.w}-${tot.gp - tot.w} record</div></div>
         <div class="card tile"><div class="l">Points</div><div class="v">${fmt1(tot.pts / tot.gp)}</div><div class="d">per game · ${int(tot.pts)} total</div></div>
         <div class="card tile"><div class="l">Rebounds · assists</div><div class="v">${fmt1(tot.reb / tot.gp)} · ${fmt1(tot.ast / tot.gp)}</div><div class="d">per game</div></div>
         <div class="card tile"><div class="l">Shooting</div><div class="v">${pct(tot.f3m, tot.f3a)}%</div><div class="d">3P · ${pct(tot.f2m, tot.f2a)}% 2P · ${pct(tot.ftm, tot.fta)}% FT</div></div>
         <div class="card tile"><div class="l">PIR</div><div class="v">${fmt1(tot.pir / tot.gp)}</div><div class="d">per game · ${fmt1(tot.min / tot.gp)} min</div></div>
       </div>
       <section class="section"><div class="section-head"><h2>Season by season</h2><div class="filters" id="pmode" style="margin:0"></div></div><div class="card" id="plines"></div></section>
-      <section class="section"><div class="section-head"><h2>Points per game</h2><span class="sub">${rows.length} games · click a bar to open the game</span></div>
+      <section class="section"><div class="section-head"><h2>Points per game</h2><span class="sub">${rows.length} games</span></div>
         <div class="card pad"><div class="legend">${compsIn(rows.map((r) => S.byId[r.g])).map((c) => `<span><i class="sw" style="background:${compColor(c)}"></i>${esc(c)}</span>`).join("")}</div><div id="ppts"></div></div></section>
-      <section class="section"><div class="section-head"><h2>Career highs</h2><span class="sub">Single game, with Partizan</span></div>
+      <section class="section"><div class="section-head"><h2>Career highs</h2></div>
         <div class="grid g4">${highs.filter((h) => h.best).map(({ s, best }) => { const bg = S.byId[best.g]; return `<a class="card tile" href="#/game/${bg.id}"><div class="l">${HL[s]}</div><div class="v">${best[s]}</div><div class="d">${bg.parHome ? "vs" : "at"} ${esc(opp(bg).name)} · ${fmtDate(bg.date)}</div></a>`; }).join("")}</div></section>
       <section class="section"><div class="section-head"><h2>Game log</h2></div><div class="card" id="plog"></div></section>`;
 
@@ -684,7 +709,7 @@
     columnChart(document.getElementById("ppts"), rows, {
       value: (r) => r.pts,
       color: (r) => compColor(S.byId[r.g].comp),
-      tipFor: (r) => { const g = S.byId[r.g]; return [tnode("tv", `${r.pts} pts`), tnode("", `${r.reb} reb · ${r.ast} ast · ${r.pir} PIR`), tnode("ts", `${g.win ? "W" : "L"} ${par(g).score}–${opp(g).score} ${g.parHome ? "vs" : "at"} ${opp(g).name}`), tnode("ts", `${g.comp} · ${fmtDate(g.date)}`)]; },
+      tipFor: (r) => { const g = S.byId[r.g]; return [tnode("tv", `${r.pts} pts`), tnode("", `${r.reb} reb · ${r.ast} ast · ${r.pir} PIR`), tnode("ts", `${g.win ? "W" : "L"} ${par(g).score}-${opp(g).score} ${g.parHome ? "vs" : "at"} ${opp(g).name}`), tnode("ts", `${g.comp} · ${fmtDate(g.date)}`)]; },
       onClick: (r) => (location.hash = `#/game/${r.g}`),
       yLabel: "Points per game",
     });
@@ -692,7 +717,7 @@
       { key: "date", label: "Date", val: (r) => fmtDate(S.byId[r.g].date), sortVal: (r) => S.byId[r.g].date },
       { key: "opp", label: "Opponent", html: (r) => { const g = S.byId[r.g]; return `<div class="team-cell">${logo(opp(g))}${g.parHome ? "" : "@ "}${esc(opp(g).name)}</div>`; }, sortVal: (r) => opp(S.byId[r.g]).name },
       { key: "comp", label: "Comp", html: (r) => `<span class="dot" style="background:${compColor(S.byId[r.g].comp)}"></span> ${COMP_SHORT[S.byId[r.g].comp]}`, sortVal: (r) => S.byId[r.g].comp },
-      { key: "res", label: "Result", html: (r) => { const g = S.byId[r.g]; return `${wl(g.win)} ${par(g).score}–${opp(g).score}`; }, sortVal: (r) => margin(S.byId[r.g]) },
+      { key: "res", label: "Result", html: (r) => { const g = S.byId[r.g]; return `${wl(g.win)} ${par(g).score}-${opp(g).score}`; }, sortVal: (r) => margin(S.byId[r.g]) },
       { key: "min", label: "MIN", num: true, val: (r) => fmtMin(r.min) },
       { key: "pts", label: "PTS", num: true, cls: "strong" },
       { key: "f2", label: "2P", num: true, val: (r) => `${r.f2m}/${r.f2a}`, sortVal: (r) => r.f2m },
@@ -709,7 +734,7 @@
     const seasons = seasonsList();
     let comp = "", season = "";
     main.innerHTML = `
-      <div class="section-head"><h2 style="font-size:40px">Records</h2><span class="sub">Bests and leaderboards across all five seasons</span></div>
+      <div class="section-head"><h2 style="font-size:40px">Records</h2></div>
       <div class="filters" id="rc"></div><div class="filters" id="rs"></div>
       <div id="rbody"></div>`;
     const render = () => {
@@ -723,7 +748,7 @@
       const single = (stat, label) => `<div class="card pad"><h3>${label}</h3><ol class="lead-list">${[...rows].sort((a, b) => b[stat] - a[stat] || b.pir - a.pir).slice(0, 8).map((r, i) => `<li><span class="rk">${i + 1}</span><span>${pLink(r.k)}<a class="ctx" href="#/game/${r.g}">${ctx(S.byId[r.g])}</a></span><span class="val">${r[stat]}</span></li>`).join("")}</ol></div>`;
       const careerList = (stat, label, per) => `<div class="card pad"><h3>${label}</h3><ol class="lead-list">${[...career].filter((p) => !per || p.gp >= 15).sort((a, b) => (per ? b[stat] / b.gp - a[stat] / a.gp : b[stat] - a[stat])).slice(0, 8).map((p, i) => `<li><span class="rk">${i + 1}</span><span>${pLink(p.key)}<span class="ctx">${p.gp} games</span></span><span class="val">${per ? fmt1(p[stat] / p.gp) : int(p[stat])}</span></li>`).join("")}</ol></div>`;
       const teamList = (label, sorted, val) => `<div class="card pad"><h3>${label}</h3><ol class="lead-list">${sorted.slice(0, 8).map((g, i) => `<li><span class="rk">${i + 1}</span><span><a href="#/game/${g.id}">${g.parHome ? "vs" : "at"} ${esc(opp(g).name)}</a><span class="ctx">${esc(g.comp)} · ${fmtDate(g.date)}</span></span><span class="val">${val(g)}</span></li>`).join("")}</ol></div>`;
-      const score = (g) => `${par(g).score}–${opp(g).score}`;
+      const score = (g) => `${par(g).score}-${opp(g).score}`;
       document.getElementById("rbody").innerHTML = `
         <section class="section"><div class="section-head"><h2>Single-game highs</h2></div>
           <div class="grid g4">${single("pts", "Points")}${single("reb", "Rebounds")}${single("ast", "Assists")}${single("pir", "PIR")}${single("f3m", "Threes made")}${single("stl", "Steals")}${single("blk", "Blocks")}${single("fd", "Fouls drawn")}</div></section>
@@ -760,7 +785,7 @@
         comps: compsIn(e.games), last };
     });
     main.innerHTML = `
-      <div class="section-head"><h2 style="font-size:40px">Opponents</h2><span class="sub">Head-to-head against ${rows.length} clubs · click a row for every meeting</span></div>
+      <div class="section-head"><h2 style="font-size:40px">Opponents</h2><span class="sub">${rows.length} clubs</span></div>
       <div class="card" id="otab"></div>
       <section class="section" id="odetail"></section>`;
     table(document.getElementById("otab"), [
@@ -770,14 +795,14 @@
       { key: "w", label: "W", num: true }, { key: "l", label: "L", num: true },
       { key: "pct", label: "Win %", num: true, val: (r) => (r.pct * 100).toFixed(0) },
       { key: "diff", label: "Avg margin", num: true, val: (r) => signed(+r.diff.toFixed(1)) },
-      { key: "last", label: "Last meeting", html: (r) => `${wl(r.last.win)} ${par(r.last).score}–${opp(r.last).score} <span class="muted">${fmtDate(r.last.date)}</span>`, sortVal: (r) => r.last.date },
+      { key: "last", label: "Last meeting", html: (r) => `${wl(r.last.win)} ${par(r.last).score}-${opp(r.last).score} <span class="muted">${fmtDate(r.last.date)}</span>`, sortVal: (r) => r.last.date },
     ], rows, { sort: "n", href: (r) => `#/opponents/${r.key}` });
     const sel = location.hash.split("/")[2];
     if (sel && map.has(sel)) {
       const e = map.get(sel);
       const r = record(e.games);
       const d = document.getElementById("odetail");
-      d.innerHTML = `<div class="section-head"><h2>vs ${esc(e.name)}</h2><span class="sub">${r.w}–${r.l}</span></div>${gamesList([...e.games].reverse(), false)}`;
+      d.innerHTML = `<div class="section-head"><h2>vs ${esc(e.name)}</h2><span class="sub">${r.w}-${r.l}</span></div>${gamesList([...e.games].reverse(), false)}`;
       d.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }

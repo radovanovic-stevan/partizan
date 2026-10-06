@@ -1,42 +1,42 @@
-# Partizan · five seasons
+# Partizan Stats
 
-Every official BC Partizan game from **2021-22 to 2025-26**, archived once and presented as a static site
-for GitHub Pages: results, full box scores for both teams, EuroLeague shot charts, player bios and
-per-season stats, records and head-to-head records against every opponent.
+BC Partizan results, box scores, shot charts, player stats and records from 2021-22 onward,
+published as a static site on GitHub Pages.
 
-| Competition   | Seasons            | Source |
-|---------------|--------------------|--------|
-| EuroLeague    | 2022-23 – 2025-26  | `api-live.euroleague.net`, `live.euroleague.net/api` (box score, header, shot locations) |
-| EuroCup       | 2021-22            | same API as EuroLeague |
-| ABA League    | 2021-22 – 2025-26  | `aba-liga.com` match pages (box score, quarters, venue, attendance, referees) |
-| ABA Supercup  | 2023-24            | `aba-liga.com` |
+| Competition  | Seasons            | Source |
+|--------------|--------------------|--------|
+| EuroLeague   | 2022-23 to 2026-27 | `api-live.euroleague.net`, `live.euroleague.net/api` |
+| EuroCup      | 2021-22            | same as EuroLeague |
+| ABA League   | 2021-22 to 2026-27 | `aba-liga.com` match pages |
+| ABA Supercup | 2023-24            | `aba-liga.com` |
 
-That is 342 games and 52 players. The Serbian league (KLS) and the Radivoj Korać Cup aren't
-included because the federation publishes them only through a JavaScript widget.
+The Serbian league (KLS) and the Radivoj Korać Cup are not included. The federation only
+publishes them through a JavaScript widget.
 
 ## Layout
 
 ```
-data/raw/          gzipped responses exactly as downloaded (the one-time archive)
-scraper/fetch.py   downloads everything into data/raw; files already present are never re-fetched
+data/raw/          gzipped responses as downloaded
+scraper/fetch.py   downloads into data/raw
 scraper/build.py   parses data/raw into site/data (no network)
-site/              the static site (index.html, app.js, style.css, data/)
+site/              the static site
 ```
 
-`site/data` contains `games.json` (every game), `players.json` (bios + season lines),
-`plog.json` (every Partizan player-game row) and `box/<game>.json` (full box score + shots).
+## Updating the current season
 
-## Rebuild
+`CURRENT` in `scraper/fetch.py` names the season in progress. For that season the schedule,
+calendar and roster are downloaded again on every run, and box scores are fetched for any newly
+played game. Finished games are never downloaded twice.
 
 ```sh
-python3 scraper/fetch.py   # only needed if data/raw is missing something
+python3 scraper/fetch.py
 python3 scraper/build.py
-cd site && python3 -m http.server   # open http://localhost:8000
+cd site && python3 -m http.server   # http://localhost:8000
 ```
 
-Python 3.9+, standard library only.
+Python 3.9+, standard library only. When a new season starts, add it to `EUROPE` and
+`ABA_SEASONS` in `fetch.py` and move `CURRENT`.
 
 ## Deploy
 
-`.github/workflows/pages.yml` publishes `site/` to GitHub Pages on every push to `main`.
-In the repository settings, set **Pages → Source** to **GitHub Actions** if the workflow can't enable it itself.
+`.github/workflows/pages.yml` publishes `site/` on every push to `main`.
