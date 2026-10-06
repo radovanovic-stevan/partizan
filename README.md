@@ -1,7 +1,7 @@
 # Partizan Stats
 
 BC Partizan results, box scores, shot charts, player stats and records from 2021-22 onward,
-published as a static site on GitHub Pages.
+published as a static site on GitHub Pages at [partizan.stevan.co.rs](https://partizan.stevan.co.rs).
 
 | Competition  | Seasons            | Source |
 |--------------|--------------------|--------|
