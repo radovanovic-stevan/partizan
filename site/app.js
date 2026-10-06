@@ -4,9 +4,9 @@
 
   // ------------------------------------------------------------------ state
   const S = { games: [], players: [], plog: [], byId: {}, byKey: {}, box: {}, meta: {} };
-  const COMPS = ["ABA League", "EuroLeague", "EuroCup", "ABA Supercup"];
-  const COMP_VAR = { "ABA League": "--c-aba", EuroLeague: "--c-el", EuroCup: "--c-ec", "ABA Supercup": "--c-sc" };
-  const COMP_SHORT = { "ABA League": "ABA", EuroLeague: "EL", EuroCup: "EC", "ABA Supercup": "SC" };
+  const COMPS = ["ABA League", "EuroLeague", "EuroCup", "KLS", "Korać Cup", "ABA Supercup"];
+  const COMP_VAR = { "ABA League": "--c-aba", EuroLeague: "--c-el", EuroCup: "--c-ec", "ABA Supercup": "--c-sc", KLS: "--c-kls", "Korać Cup": "--c-kup" };
+  const COMP_SHORT = { "ABA League": "ABA", EuroLeague: "EL", EuroCup: "EC", "ABA Supercup": "SC", KLS: "KLS", "Korać Cup": "Cup" };
   const STAT = ["pts", "f2m", "f2a", "f3m", "f3a", "ftm", "fta", "or", "dr", "reb", "ast", "stl", "tov", "blk", "blka", "pf", "fd", "pm", "pir"];
   const main = document.getElementById("main");
 
@@ -32,9 +32,15 @@
   const opp = (g) => (g.parHome ? g.away : g.home);
   const par = (g) => (g.parHome ? g.home : g.away);
   const margin = (g) => par(g).score - opp(g).score;
-  const oppKey = (name) =>
-    name.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  // the sources spell some clubs differently ("Zvezda" / "Crvena zvezda", "Barca" / "Barcelona")
+  const OPP_ALIASES = { zvezda: "crvenazvezda", barca: "barcelona" };
+  const oppKey = (name) => {
+    const k = name.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
       .replace(/\b(basketball|bc|kk|bk|club)\b/g, "").replace(/[^a-z]/g, "");
+    return OPP_ALIASES[k] || k;
+  };
+  // forfeits count in the record but not in scoring stats, margins or records
+  const scored = (games) => games.filter((g) => !g.forfeit);
   const seasonsList = () => [...new Set(S.games.map((g) => g.season))].sort();
   const compsIn = (games) => COMPS.filter((c) => games.some((g) => g.comp === c));
   const wl = (win) => `<span class="wl ${win ? "w" : "l"}" title="${win ? "Win" : "Loss"}">${win ? "W" : "L"}</span>`;
@@ -311,7 +317,7 @@
       <div class="date">${fmtDate(g.date, true)}<br>${g.date.slice(0, 4)}</div>
       <div class="opp">${logo(o)}<div style="min-width:0"><div class="opp-name">${g.parHome ? "" : '<span class="muted">@ </span>'}${esc(o.name)}</div>
         <div class="meta"><span class="dot" style="background:${compColor(g.comp)}"></span> ${esc(g.comp)} · ${esc(g.round)}</div></div></div>
-      <div class="score">${par(g).score}-${o.score}</div>
+      <div class="score">${par(g).score}-${o.score}${g.forfeit ? '<div class="meta">Forfeit</div>' : ""}</div>
       ${wl(g.win)}
     </a>`;
   }
@@ -349,7 +355,7 @@
       <section class="hero">
         <div class="kicker">KK Partizan Belgrade · ${seasons[0]} to ${seasons[seasons.length - 1]}</div>
         <h1>Partizan<br>Stats</h1>
-        <p class="lede">Results, box scores and player stats from the ABA League, EuroLeague, EuroCup and ABA Supercup.</p>
+        <p class="lede">Results, box scores and player stats from the EuroLeague, EuroCup, ABA League, KLS, Korać Cup and ABA Supercup.</p>
         <div class="hero-stats">
           <div class="hero-stat"><div class="v">${r.n}</div><div class="l">Games</div></div>
           <div class="hero-stat"><div class="v">${r.w}-${r.l}</div><div class="l">Record</div></div>
@@ -384,7 +390,7 @@
         <div class="section-head"><h2>Latest games</h2><a class="sub" href="#/season/${seasons[seasons.length - 1]}">Full season</a></div>
         ${gamesList([...all].slice(-8).reverse(), false)}
       </section>`;
-    marginChart(document.getElementById("margin-all"), all, true);
+    marginChart(document.getElementById("margin-all"), scored(all), true);
   }
 
   function seasonCard(s) {
@@ -415,8 +421,9 @@
     const games = comp ? sg.filter((g) => g.comp === comp) : sg;
     const r = record(games);
     const home = record(games.filter((g) => g.parHome)), away = record(games.filter((g) => !g.parHome));
-    const ppg = games.reduce((s, g) => s + par(g).score, 0) / (games.length || 1);
-    const oppg = games.reduce((s, g) => s + opp(g).score, 0) / (games.length || 1);
+    const sg2 = scored(games);
+    const ppg = sg2.reduce((s, g) => s + par(g).score, 0) / (sg2.length || 1);
+    const oppg = sg2.reduce((s, g) => s + opp(g).score, 0) / (sg2.length || 1);
     const att = games.filter((g) => g.parHome && g.att);
     const avgAtt = att.reduce((s, g) => s + g.att, 0) / (att.length || 1);
     const coaches = [...new Set(games.map((g) => g.coach).filter(Boolean))];
@@ -450,7 +457,7 @@
 
     chips(document.getElementById("season-pick"), seasons.map((s) => ({ value: s, label: s })), season, (v) => (location.hash = `#/season/${v}${comp ? "/" + encodeURIComponent(comp) : ""}`));
     chips(document.getElementById("comp-pick"), [{ value: "", label: "All competitions" }, ...comps.map((c) => ({ value: c, label: c, dot: compColor(c) }))], comp || "", (v) => (location.hash = `#/season/${season}${v ? "/" + encodeURIComponent(v) : ""}`));
-    marginChart(document.getElementById("margin-season"), games, !comp && comps.length > 1 ? false : false);
+    marginChart(document.getElementById("margin-season"), scored(games), false);
 
     const ids = new Set(games.map((g) => g.id));
     const rows = aggregateBy(S.plog.filter((r) => ids.has(r.g)), (r) => r.k);
@@ -467,7 +474,7 @@
     const g = S.byId[id];
     if (!g) return notFound();
     main.innerHTML = `<div class="loading">Loading</div>`;
-    const box = await loadBox(id);
+    const box = g.hasBox ? await loadBox(id) : { teams: [], shots: [] };
     const h = g.home, a = g.away;
     const ot = g.q.length > 4;
     const sameSeason = S.games.filter((x) => x.season === g.season && x.comp === g.comp);
@@ -495,12 +502,13 @@
           ${g.venue ? `<div><div class="k">Venue</div>${esc(g.venue)}</div>` : ""}
           ${g.att ? `<div><div class="k">Attendance</div>${int(g.att)}</div>` : ""}
           ${g.refs.length ? `<div><div class="k">Referees</div>${esc(g.refs.join(", "))}</div>` : ""}
-          ${g.coach ? `<div><div class="k">Coaches</div>${esc(box.teams[0].coach)} · ${esc(box.teams[1].coach)}</div>` : ""}
+          ${g.coach && box.teams.length ? `<div><div class="k">Coaches</div>${esc(box.teams[0].coach)} · ${esc(box.teams[1].coach)}</div>` : ""}
           <div><div class="k">Head to head</div>${h2hR.w}-${h2hR.l} vs ${esc(opp(g).name)}</div>
-          <div><div class="k">Source</div><a href="${esc(g.src)}" target="_blank" rel="noopener">Official box score ↗</a></div>
+          <div><div class="k">Source</div><a href="${esc(g.src)}" target="_blank" rel="noopener">Source page ↗</a></div>
         </div></div>
       </div>
-      <section class="section"><div class="section-head"><h2>Team comparison</h2></div><div class="card pad" id="cmp"></div></section>
+      ${box.teams.length ? `<section class="section"><div class="section-head"><h2>Team comparison</h2></div><div class="card pad" id="cmp"></div></section>`
+        : `<div class="card pad empty" style="margin-top:14px">${g.forfeit ? "Awarded 20-0 by forfeit. There is no box score." : "No box score is available for this game."}</div>`}
       ${box.teams.map((t, i) => `<section class="section"><div class="section-head"><h2>${esc(t.name)}</h2>${t.coach ? `<span class="sub">Coach: ${esc(t.coach)}</span>` : ""}</div><div class="card" id="box-${i}"></div></section>`).join("")}
       ${box.shots && box.shots.length ? `<section class="section"><div class="section-head"><h2>Shot chart</h2><span class="sub">Filled = made, ring = missed</span></div>
         <div class="card pad"><div class="filters" id="shot-team"></div><div class="filters" id="shot-player"></div><div class="grid g2" style="align-items:center"><div class="court-wrap" id="court"></div><div id="shot-summary"></div></div></div></section>` : ""}
@@ -509,6 +517,7 @@
         ${next ? `<a class="chip" href="#/game/${next.id}">Next: ${esc(opp(next).name)} · ${fmtDate(next.date, true)}</a>` : ""}
       </div>`;
 
+    if (!box.teams.length) return;
     // comparison bars
     const T = box.teams.map((t) => t.tot);
     const cmpRows = [
@@ -522,7 +531,7 @@
     const colA = box.teams[0].par ? "var(--ink)" : "var(--muted)", colB = box.teams[1].par ? "var(--ink)" : "var(--muted)";
     document.getElementById("cmp").innerHTML =
       `<div class="cmp" style="padding-bottom:10px"><span class="v">${esc(COMP_SHORT[g.comp] && h.code === "PAR" ? "PAR" : h.name.slice(0, 3).toUpperCase())}</span><span></span><span></span><span></span><span class="v r">${esc(a.code === "PAR" ? "PAR" : a.name.slice(0, 3).toUpperCase())}</span></div>` +
-      cmpRows.map(([lbl, f, fm]) => {
+      cmpRows.filter(([, f]) => f(T[0]) != null && f(T[1]) != null).map(([lbl, f, fm]) => {
         const va = f(T[0]), vb = f(T[1]), mx = Math.max(va, vb, 1e-9);
         const show = fm || ((v) => v);
         return `<div class="cmp"><span class="v">${show(va)}</span><div class="track l"><div class="fill" style="width:${(100 * va) / mx}%;background:${colA}"></div></div><span class="lbl">${lbl}</span><div class="track"><div class="fill" style="width:${(100 * vb) / mx}%;background:${colB}"></div></div><span class="v r">${show(vb)}</span></div>`;
@@ -541,7 +550,7 @@
         { key: "or", label: "OR", num: true }, { key: "dr", label: "DR", num: true }, { key: "reb", label: "REB", num: true },
         { key: "ast", label: "AST", num: true }, { key: "stl", label: "STL", num: true }, { key: "tov", label: "TO", num: true },
         { key: "blk", label: "BLK", num: true }, { key: "pf", label: "PF", num: true }, { key: "fd", label: "FD", num: true },
-        { key: "pm", label: "+/-", num: true, val: (r) => (r.dnp ? "" : signed(r.pm)) },
+        { key: "pm", label: "+/-", num: true, val: (r) => (r.dnp || r.pm == null ? "" : signed(r.pm)) },
         { key: "pir", label: "PIR", num: true },
       ];
       const tt = t.tot;
@@ -758,9 +767,9 @@
           <div class="grid g4">${careerList("pts", "Points", 1)}${careerList("reb", "Rebounds", 1)}${careerList("ast", "Assists", 1)}${careerList("pir", "PIR", 1)}</div></section>
         <section class="section"><div class="section-head"><h2>Team</h2></div>
           <div class="grid g4">
-            ${teamList("Biggest wins", [...games].sort((a, b) => margin(b) - margin(a)), (g) => signed(margin(g)))}
-            ${teamList("Heaviest losses", [...games].sort((a, b) => margin(a) - margin(b)), (g) => signed(margin(g)))}
-            ${teamList("Most points scored", [...games].sort((a, b) => par(b).score - par(a).score), score)}
+            ${teamList("Biggest wins", scored(games).sort((a, b) => margin(b) - margin(a)), (g) => signed(margin(g)))}
+            ${teamList("Heaviest losses", scored(games).sort((a, b) => margin(a) - margin(b)), (g) => signed(margin(g)))}
+            ${teamList("Most points scored", scored(games).sort((a, b) => par(b).score - par(a).score), score)}
             ${teamList("Biggest crowds", [...games].filter((g) => g.att).sort((a, b) => b.att - a.att), (g) => int(g.att))}
           </div></section>`;
     };
@@ -781,7 +790,7 @@
     const rows = [...map.values()].map((e) => {
       const r = record(e.games);
       const last = e.games[e.games.length - 1];
-      return { ...e, n: r.n, w: r.w, l: r.l, pct: r.pct, diff: e.games.reduce((s, g) => s + margin(g), 0) / r.n,
+      return { ...e, n: r.n, w: r.w, l: r.l, pct: r.pct, diff: scored(e.games).reduce((s, g) => s + margin(g), 0) / (scored(e.games).length || 1),
         comps: compsIn(e.games), last };
     });
     main.innerHTML = `

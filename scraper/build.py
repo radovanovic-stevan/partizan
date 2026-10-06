@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fetch import ABA_COMPS, ABA_SEASONS, CURRENT, EUROPE, RAW
+from fetch import ABA_COMPS, ABA_SEASONS, CURRENT, EUROPE, RAW, SOFA_TEAM, SOFA_TOURNAMENTS
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "data"
@@ -386,6 +386,194 @@ def short_club(name):
     return n or name
 
 
+# --------------------------------------------------------------------------- KLS + Korac Cup
+
+SOFA_POS = {"G": "Guard", "F": "Forward", "C": "Center", "GF": "Guard-Forward", "FC": "Forward-Center"}
+COMP_NAMES = {"KLS": "KLS", "Korac Cup": "Korać Cup"}
+
+
+def season_of(ts):
+    d = datetime.fromtimestamp(ts, timezone.utc)
+    y = d.year if d.month >= 8 else d.year - 1
+    return f"{y}-{str(y + 1)[2:]}", d
+
+
+def sofa_club(name):
+    n = re.sub(r"^(KK|BKK) ", "", name.strip())
+    return {"Mega Basket": "Mega", "FMP Beograd": "FMP"}.get(short_club(n), short_club(n))
+
+
+def sofa_player(p):
+    st = p.get("statistics") or {}
+    secs = st.get("secondsPlayed") or 0
+    g = lambda k: st.get(k) or 0  # noqa: E731
+    pl = p["player"]
+    return {
+        "n": pl["name"], "no": str(p.get("jerseyNumber") or pl.get("jerseyNumber") or ""),
+        "st": not p.get("substitute", True), "min": round(secs / 60, 2), "pts": g("points"),
+        "f2m": g("twoPointsMade"), "f2a": g("twoPointAttempts"), "f3m": g("threePointsMade"),
+        "f3a": g("threePointAttempts"), "ftm": g("freeThrowsMade"), "fta": g("freeThrowAttempts"),
+        "or": g("offensiveRebounds"), "dr": g("defensiveRebounds"), "reb": g("rebounds"),
+        "ast": g("assists"), "stl": g("steals"), "tov": g("turnovers"), "blk": g("blocks"),
+        "blka": None, "pf": st.get("personalFouls"), "fd": None, "pm": st.get("plusMinus"), "pir": st.get("pir"),
+        "pid": f"SF{pl['id']}", "dnp": secs == 0,
+    }
+
+
+def sofa_bio(pl):
+    b = {}
+    if pl.get("dateOfBirthTimestamp") is not None:
+        b["born"] = datetime.fromtimestamp(pl["dateOfBirthTimestamp"], timezone.utc).strftime("%Y-%m-%d")
+    if pl.get("height"):
+        b["height"] = pl["height"]
+    if (pl.get("country") or {}).get("name"):
+        b["nat"] = pl["country"]["name"]
+    if pl.get("position"):
+        b["pos"] = SOFA_POS.get(pl["position"], pl["position"])
+    return b
+
+
+def bh_text(raw):
+    return raw.decode("utf-8", "replace").replace("\\/", "/").replace('\\"', '"').replace("\\n", "\n") \
+        .replace("\\r", "").replace("\\t", " ")
+
+
+def bh_games():
+    """2022 Korac Cup box scores from Baskethotel, keyed by (date, home score, away score)."""
+    out = {}
+    for f in sorted((RAW / "baskethotel").glob("*_game.js.gz")):
+        gid = f.name.split("_")[0]
+        card = strip_tags(re.sub(r"<[^>]+>", " ", bh_text(load(f))))
+        card = re.sub(r"\s+", " ", card)
+        m = re.search(r"Game: (.+?) (\d+) - (\d+) (.+?) Game card", card)
+        date = re.search(r"(\d{4}-\d\d-\d\d) (\d\d:\d\d)", card)
+        if not m or not date:
+            continue
+        # the score line "85 - 68" comes first, then one pair per period
+        pairs = [[int(a), int(b)] for a, b in re.findall(r"\b(\d{1,3}) - (\d{1,3})\b", card.split("Game number")[0])]
+        quarters = pairs[1:] if pairs and pairs[0] == [int(m.group(2)), int(m.group(3))] else pairs
+        info = {
+            "date": f"{date.group(1)}T{date.group(2)}",
+            "venue": (re.search(r"Arena: (.+?) (?:Attendance|Referees|Commissioner)", card) or [None, ""])[1].strip(),
+            "att": attendance((re.search(r"Attendance: (\d+)", card) or [None, "0"])[1]),
+            "refs": [r.strip() for r in (re.search(r"Referees: (.+?) Commissioner", card) or [None, ""])[1].split(",") if r.strip()],
+            "q": quarters,
+        }
+        box = bh_text(load(RAW / "baskethotel" / f"{gid}_box.js.gz"))
+        teams = []
+        for name, coach, tbl in re.findall(r'<div class="mbt-text">\s*([^<]+?) \(Coach: ([^<]+?)\)\s*</div>(.*?)</table>', box, re.S):
+            players = []
+            for tr in re.findall(r'<tr class="row\d">(.*?)</tr>', tbl, re.S):
+                cells = [strip_tags(re.sub(r"\s+", " ", c)) for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)]
+                if len(cells) < 24 or cells[0] == "Sums" or not cells[1] or cells[1] == "Team":
+                    continue
+                num = lambda v: int(v) if re.fullmatch(r"-?\d+", v.strip()) else 0  # noqa: E731
+                ma = lambda v: [num(x) for x in v.replace(" ", "").split("/")] if "/" in v else [0, 0]  # noqa: E731
+                (f2m, f2a), (f3m, f3a), (ftm, fta) = ma(cells[3]), ma(cells[5]), ma(cells[9])
+                mins = minutes(cells[2])
+                players.append({
+                    "n": cells[1].lstrip("*").strip(), "no": cells[0], "st": cells[1].startswith("*"),
+                    "min": round(mins, 2), "pts": num(cells[23]), "f2m": f2m, "f2a": f2a, "f3m": f3m, "f3a": f3a,
+                    "ftm": ftm, "fta": fta, "or": num(cells[11]), "dr": num(cells[12]), "reb": num(cells[13]),
+                    "ast": num(cells[14]), "pf": num(cells[15]), "fd": num(cells[16]), "tov": num(cells[17]),
+                    "stl": num(cells[18]), "blk": num(cells[19]), "blka": num(cells[20]), "pir": num(cells[21]),
+                    "pm": num(cells[22]), "pid": "BH" + name_key(cells[1]), "dnp": mins == 0,
+                })
+            teams.append({"name": strip_tags(name), "coach": coach_name(strip_tags(coach)), "players": players})
+        out[(info["date"][:10], int(m.group(2)), int(m.group(3)))] = (info, teams)
+    return out
+
+
+def build_sofascore(games, boxes, bios, logos):
+    base = RAW / "sofascore"
+    if not (base / "events.json.gz").exists():
+        return
+    events = json.loads(load(base / "events.json.gz"))
+    bh = bh_games()
+    by_comp = defaultdict(list)
+    for e in events:
+        if e["status"]["type"] != "finished":
+            continue
+        comp = COMP_NAMES[SOFA_TOURNAMENTS[e["tournament"]["uniqueTournament"]["id"]]]
+        season, _ = season_of(e["startTimestamp"])
+        by_comp[(comp, season)].append(e)
+    for (comp, season), evs in by_comp.items():
+        evs.sort(key=lambda e: e["startTimestamp"])
+        series_no = defaultdict(int)
+        for i, e in enumerate(evs):
+            detail = json.loads(load(base / f"{e['id']}_event.json.gz"))["event"]
+            _, d = season_of(e["startTimestamp"])
+            # Sofascore stores UTC; Serbia is UTC+1/+2. Good enough for a date and kick-off hour.
+            local = datetime.fromtimestamp(e["startTimestamp"] + (7200 if 4 <= d.month <= 10 else 3600))
+            rname = (detail.get("roundInfo") or {}).get("name")
+            if comp == "Korać Cup":
+                phase = rname or ["Quarterfinals", "Semifinals", "Final"][min(i, 2)]
+                phase = {"Final": "Final"}.get(phase, phase)
+                rnd = phase.rstrip("s") if phase != "Final" else "Final"
+            else:
+                phase = {"Final": "Finals"}.get(rname or "Playoffs", rname or "Playoffs")
+                series_no[phase] += 1
+                rnd = f"{phase} · Game {series_no[phase]}"
+            hs, as_ = detail["homeScore"].get("current") or 0, detail["awayScore"].get("current") or 0
+            forfeit = {hs, as_} == {0, 20}
+            home_par = detail["homeTeam"]["id"] == SOFA_TEAM
+            sides = []
+            for t, sc in ((detail["homeTeam"], detail["homeScore"]), (detail["awayTeam"], detail["awayScore"])):
+                nm = "Partizan" if t["id"] == SOFA_TEAM else sofa_club(t["name"])
+                sides.append({"name": nm, "code": "PAR" if t["id"] == SOFA_TEAM else "", "score": sc.get("current") or 0,
+                              "logo": logos.get(fold(nm).replace(" ", "")) or f"https://img.sofascore.com/api/v1/team/{t['id']}/image"})
+            q = []
+            for k in ["period1", "period2", "period3", "period4", "overtime"]:
+                a, b = detail["homeScore"].get(k), detail["awayScore"].get(k)
+                if a is not None and b is not None:
+                    q.append([a, b])
+            gid = f"SF-{e['id']}"
+            game = {
+                "id": gid, "comp": comp, "season": season, "phase": phase, "round": rnd,
+                "date": local.strftime("%Y-%m-%dT%H:%M"), "venue": "", "att": None,
+                "home": sides[0], "away": sides[1], "q": [] if forfeit else q, "refs": [], "parHome": home_par,
+                "src": f"https://www.sofascore.com/basketball/match/{detail.get('slug', '')}/{detail.get('customId', '')}#id:{e['id']}",
+                "hasShots": False, "coach": None, "oppCoach": None, "forfeit": forfeit,
+            }
+            game["win"] = (hs > as_) == home_par
+            teams = None
+            extra = bh.get((game["date"][:10], hs, as_))
+            if extra:
+                info, bteams = extra
+                game.update({"venue": info["venue"], "att": info["att"], "refs": info["refs"]})
+                if len(info["q"]) >= 4:
+                    game["q"] = info["q"]
+                teams = []
+                for side, bt in zip(("home", "away"), sorted(bteams, key=lambda t: is_par(t["name"]) != home_par)):
+                    par = is_par(bt["name"])
+                    teams.append({"name": game[side]["name"], "code": "PAR" if par else "", "coach": bt["coach"],
+                                  "players": bt["players"], "par": par})
+                game["coach"] = next((t["coach"] for t in teams if t["par"]), None)
+                game["oppCoach"] = next((t["coach"] for t in teams if not t["par"]), None)
+            elif (base / f"{e['id']}_lineups.json.gz").exists():
+                lu = json.loads(load(base / f"{e['id']}_lineups.json.gz"))
+                teams = []
+                for side, key in (("home", "home"), ("away", "away")):
+                    par = game[side]["code"] == "PAR"
+                    plist = [sofa_player(p) for p in lu[key]["players"]]
+                    if par:
+                        for p in lu[key]["players"]:
+                            k = name_key(p["player"]["name"])
+                            for f, v in sofa_bio(p["player"]).items():
+                                bios.setdefault(k, {}).setdefault(f, v)
+                    teams.append({"name": game[side]["name"], "code": "PAR" if par else "", "coach": None,
+                                  "players": plist, "par": par})
+            if teams:
+                for t in teams:
+                    # Sofascore omits some columns for some games: keep those as missing, not 0
+                    t["tot"] = {k: (sum(p.get(k) or 0 for p in t["players"])
+                                    if any(p.get(k) is not None for p in t["players"]) else None)
+                                for k in STAT_KEYS if k != "pm"}
+                boxes[gid] = {"teams": teams, "shots": []}
+            game["hasBox"] = bool(teams)
+            games.append(game)
+
+
 # --------------------------------------------------------------------------- players
 
 def aba_bio(pid):
@@ -419,6 +607,15 @@ def main():
     games, boxes, bios, aba_players = [], {}, {}, {}
     build_europe(games, boxes, bios)
     build_aba(games, boxes, aba_players)
+    logos = {}
+    for g in games:
+        for side in ("home", "away"):
+            if g[side]["logo"]:
+                logos.setdefault(fold(g[side]["name"]).replace(" ", ""), g[side]["logo"])
+    build_sofascore(games, boxes, bios, logos)
+    for g in games:
+        g.setdefault("hasBox", True)
+        g.setdefault("forfeit", False)
     games.sort(key=lambda g: g["date"])
 
     # ---- unify Partizan player identities
@@ -438,7 +635,7 @@ def main():
             if not t["par"]:
                 continue
             for p in t["players"]:
-                if p["pid"].startswith("EL"):
+                if p["pid"][:2] in ("EL", "SF", "BH"):
                     key = name_key(p["n"])
                     pid_to_key[p["pid"]] = key
                     key_name.setdefault(key, p["n"])

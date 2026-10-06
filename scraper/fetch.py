@@ -4,6 +4,8 @@ Sources:
   * EuroLeague / EuroCup  - api-live.euroleague.net (schedule, rosters) and
                              live.euroleague.net/api (box score, header, shots)
   * ABA League + Supercup  - www.aba-liga.com (calendar and match pages)
+  * KLS playoffs + Korac Cup - api.sofascore.com (the Serbian federation does not
+                             publish these in a scrapeable form)
 
 Box scores are cached: a file that already exists is never fetched again. For the
 season in progress (CURRENT) the schedule, calendar and roster are fetched again on
@@ -14,6 +16,8 @@ import json
 import re
 import sys
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -32,6 +36,17 @@ EUROPE = [
 # aba-liga.com season ids: 21 = 2021/22 ... 26 = 2026/27
 ABA_SEASONS = {21: "2021-22", 22: "2022-23", 23: "2023-24", 24: "2024-25", 25: "2025-26", 26: "2026-27"}
 CURRENT = "2026-27"
+# Sofascore: Partizan's team id and the unique-tournament ids we keep
+SOFA_TEAM = 6637
+SOFA_TOURNAMENTS = {754: "KLS", 10188: "Korac Cup"}
+SOFA_SINCE = 1627776000  # 2021-08-01, start of the first season we cover
+
+# Baskethotel (the Serbian federation's stats widgets): Korac Cup box scores. Only the
+# 2022 tournament falls inside our range there; later cups are only on Sofascore.
+BH_API = "334454ccfb85b545a571fb76ced66e268e8dc98c"
+BH_CUP_LEAGUE = 34757
+BH_CUP_SEASONS = {"2021-22": 124222}
+
 # aba-liga.com competition ids
 ABA_COMPS = {1: ("calendar", "ABA League"), 3: ("calendar-supercup", "ABA Supercup")}
 
@@ -44,6 +59,12 @@ def get(url, retries=4):
             req = urllib.request.Request(url, headers={"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=60) as r:
                 return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise
+            wait = 2 ** (attempt + 1)
+            print(f"  ! {url}: {e} (retry in {wait}s)", file=sys.stderr)
+            time.sleep(wait)
         except Exception as e:  # noqa: BLE001
             wait = 2 ** (attempt + 1)
             print(f"  ! {url}: {e} (retry in {wait}s)", file=sys.stderr)
@@ -123,10 +144,85 @@ def fetch_aba_players():
         cached(RAW / "aba" / "players" / f"{pid}.html.gz", "https://www.aba-liga.com" + path)
 
 
+def fetch_sofascore():
+    """KLS playoff and Korac Cup games. The team's game list is paged newest first and
+    re-fetched on every run; per-game detail and box scores are cached once finished."""
+    base = RAW / "sofascore"
+    events, page = [], 0
+    while True:
+        print(f"GET sofascore team events page {page}")
+        data = json.loads(get(f"https://api.sofascore.com/api/v1/team/{SOFA_TEAM}/events/last/{page}"))
+        time.sleep(0.5)
+        batch = data.get("events", [])
+        events += [e for e in batch if e["startTimestamp"] >= SOFA_SINCE
+                   and e["tournament"].get("uniqueTournament", {}).get("id") in SOFA_TOURNAMENTS]
+        if not batch or not data.get("hasNextPage") or min(e["startTimestamp"] for e in batch) < SOFA_SINCE:
+            break
+        page += 1
+    events.sort(key=lambda e: e["startTimestamp"])
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "events.json.gz").write_bytes(gzip.compress(json.dumps(events).encode(), 9))
+    done = [e for e in events if e["status"]["type"] == "finished"]
+    print(f"Sofascore: {len(done)} finished KLS / Korac Cup games")
+    for e in done:
+        cached(base / f"{e['id']}_event.json.gz", f"https://api.sofascore.com/api/v1/event/{e['id']}")
+        # forfeits (20-0) have no box score; some older games have none either
+        missing = base / f"{e['id']}_lineups.missing"
+        if e.get("homeScore", {}).get("current") and e.get("awayScore", {}).get("current") and not missing.exists():
+            try:
+                cached(base / f"{e['id']}_lineups.json.gz", f"https://api.sofascore.com/api/v1/event/{e['id']}/lineups")
+            except urllib.error.HTTPError as err:
+                if err.code != 404:
+                    raise
+                print(f"  no box score for event {e['id']}")
+                missing.touch()
+
+
+def bh_widget(widget, params, part=None, state=None, container="c"):
+    q = [("api", BH_API), ("lang", "en"), ("nnav", "1"), ("nav_object", "0"), ("hide_full_birth_date", "0"),
+         ("flash", "0"), ("request[0][container]", container), ("request[0][widget]", str(widget))]
+    if part:
+        q.append(("request[0][part]", part))
+    if state:
+        q.append(("request[0][state]", state))
+    q += [(f"request[0][param]{k}", str(v)) for k, v in params]
+    return "https://widgets.baskethotel.com/widget-service/show?" + urllib.parse.urlencode(q)
+
+
+def bh_state(body):
+    m = re.search(r"state: \\?'([A-Za-z0-9+/=]+)", body)
+    return m.group(1) if m else None
+
+
+def fetch_baskethotel_cup():
+    base = RAW / "baskethotel"
+    for label, season in BH_CUP_SEASONS.items():
+        ids = [("[league_id]", BH_CUP_LEAGUE), ("[season_id]", season)]
+        first = cached(base / f"cup_{season}_schedule.js.gz", bh_widget(303, ids)).decode("utf-8", "replace")
+        results = cached(base / f"cup_{season}_results.js.gz", bh_widget(
+            303, [("[season_id]", season), ("[filter][month]", "all"), ("[filter][type]", "results_only"),
+                  ("[page]", "1")], part="schedule_and_results", state=bh_state(first),
+            container="293-303-container")).decode("utf-8", "replace")
+        games = set()
+        for gid, row in re.findall(r'schedule-line-container-(\d+)(.*?)<\\?/tr>', results, re.S):
+            if "partizan" in row.lower():
+                games.add(gid)
+        print(f"Baskethotel cup {label}: {len(games)} Partizan games")
+        for gid in sorted(games):
+            gp = ids + [("[game_id]", gid)]
+            card = cached(base / f"{gid}_game.js.gz", bh_widget(400, gp)).decode("utf-8", "replace")
+            cached(base / f"{gid}_box.js.gz", bh_widget(400, [("[team_id]", gid)], part="boxscore",
+                                                         state=bh_state(card), container="293-400-tab-container"))
+
+
 if __name__ == "__main__":
-    what = sys.argv[1:] or ["europe", "aba"]
+    what = sys.argv[1:] or ["europe", "aba", "sofascore", "baskethotel"]
     if "europe" in what:
         fetch_europe()
     if "aba" in what:
         fetch_aba()
         fetch_aba_players()
+    if "sofascore" in what:
+        fetch_sofascore()
+    if "baskethotel" in what:
+        fetch_baskethotel_cup()

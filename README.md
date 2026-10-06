@@ -9,9 +9,15 @@ published as a static site on GitHub Pages.
 | EuroCup      | 2021-22            | same as EuroLeague |
 | ABA League   | 2021-22 to 2026-27 | `aba-liga.com` match pages |
 | ABA Supercup | 2023-24            | `aba-liga.com` |
+| KLS playoffs | 2021-22 to 2025-26 | `api.sofascore.com` |
+| Korać Cup    | 2021-22 to 2025-26 | `api.sofascore.com`; 2022 box scores from the federation's Baskethotel widgets |
 
-The Serbian league (KLS) and the Radivoj Korać Cup are not included. The federation only
-publishes them through a JavaScript widget.
+Notes on the Serbian competitions:
+- Partizan only plays the KLS playoffs. Sofascore lists no Partizan KLS games in 2022-23.
+- Two KLS games were forfeits (2022 semifinal vs FMP, 2024 final game 2 vs Crvena zvezda). They
+  count in the record but not in points, margins or records.
+- The 2023, 2024 and 2025 cups have results and quarter scores but no box scores.
+- Sofascore box scores have no fouls drawn or blocks against.
 
 ## Layout
 
