@@ -9,8 +9,8 @@ published as a static site on GitHub Pages at [partizan.stevan.co.rs](https://pa
 | EuroCup      | 2014-15, 2017-18 to 2021-22 | same as EuroLeague |
 | ABA League   | 2007-08 to 2026-27 | `aba-liga.com` match pages |
 | ABA Supercup | 2017-18 to 2019-20, 2023-24 | `aba-liga.com` |
-| KLS playoffs | 2021-22 to 2025-26 | `api.sofascore.com` |
-| Korać Cup    | 2021-22 to 2025-26 | `api.sofascore.com`; 2022 box scores from the federation's Baskethotel widgets |
+| KLS          | 2009-10 to 2025-26 | `api.sofascore.com` |
+| Korać Cup    | 2016-17 to 2025-26 | `api.sofascore.com`; 2018 to 2022 box scores from the federation's Baskethotel widgets |
 
 Notes on the older seasons:
 - Partizan played in neither European competition in 2015-16 and 2016-17.
@@ -20,9 +20,12 @@ Notes on the older seasons:
   is left out.
 
 Notes on the Serbian competitions:
-- Partizan only plays the KLS playoffs. Sofascore lists no Partizan KLS games in 2022-23.
-- Two KLS games were forfeits (2022 semifinal vs FMP, 2024 final game 2 vs Crvena zvezda). They
-  count in the record but not in points, margins or records.
+- Partizan only plays the late KLS stages: the Superliga and playoffs until 2018-19, the playoffs
+  since. Sofascore lists no Partizan KLS games in 2019-20 (cancelled) or 2022-23.
+- KLS games before 2023-24 and the 2017 cup have results and quarter scores but no box scores;
+  no source publishes older KLS box scores.
+- Three KLS games are listed as 20-0 (2010 final game 3 vs Vršac, 2022 semifinal vs FMP, 2024
+  final game 2 vs Crvena zvezda). They count in the record but not in points, margins or records.
 - The 2023, 2024 and 2025 cups have results and quarter scores but no box scores.
 - Sofascore box scores have no fouls drawn or blocks against.
 

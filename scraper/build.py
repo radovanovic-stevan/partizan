@@ -50,7 +50,9 @@ def title_name(el_name):
 # players the sources spell too differently to match on their own (alias -> kept)
 SAME_PLAYER = {"Milton Palacio": "Milt Palacio", "Yann Stephane Lasme": "Stephane Lasme",
                "Lester Mc Caleeb": "Lester Mccalebb", "Torrian Walden": "Corey Walden",
-               "Marko Dzurkovic": "Marko Djurkovic"}
+               "Marko Dzurkovic": "Marko Djurkovic", "Djoko Salic": "Doko Salic",
+               "Kwame Vaughn": "Kwame Donte Vaughn", "Gregory Alexander Renfroe": "Alex Renfroe",
+               "Jock Alexander Landale": "Jock Landale"}
 NAME_FIXES = {"Mccalebb": "McCalebb", "Mcadoo": "McAdoo"}
 
 # the EuroLeague feed sometimes spells the same coach differently
@@ -522,6 +524,10 @@ def build_sofascore(games, boxes, bios, logos):
                 phase = rname or ["Quarterfinals", "Semifinals", "Final"][min(i, 2)]
                 phase = {"Final": "Final"}.get(phase, phase)
                 rnd = phase.rstrip("s") if phase != "Final" else "Final"
+            elif "Playoffs" not in detail["tournament"]["name"]:
+                # until 2018-19 the top clubs joined the KLS for a Superliga stage before the playoffs
+                phase = "Superliga"
+                rnd = f"Superliga · Round {(detail.get('roundInfo') or {}).get('round', '')}".strip()
             else:
                 phase = {"Final": "Finals"}.get(rname or "Playoffs", rname or "Playoffs")
                 series_no[phase] += 1

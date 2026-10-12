@@ -43,13 +43,14 @@ CURRENT = "2026-27"
 # Sofascore: Partizan's team id and the unique-tournament ids we keep
 SOFA_TEAM = 6637
 SOFA_TOURNAMENTS = {754: "KLS", 10188: "Korac Cup"}
-SOFA_SINCE = 1627776000  # 2021-08-01, start of the first season we cover
+SOFA_SINCE = 1249084800  # 2009-08-01: Sofascore has no Partizan KLS games before 2009-10
 
-# Baskethotel (the Serbian federation's stats widgets): Korac Cup box scores. Only the
-# 2022 tournament falls inside our range there; later cups are only on Sofascore.
+# Baskethotel (the Serbian federation's stats widgets): Korac Cup box scores for the
+# 2018 to 2022 tournaments; later cups are only on Sofascore.
 BH_API = "334454ccfb85b545a571fb76ced66e268e8dc98c"
 BH_CUP_LEAGUE = 34757
-BH_CUP_SEASONS = {"2021-22": 124222}
+BH_CUP_SEASONS = {"2017-18": 101855, "2018-19": 107615, "2019-20": 117095, "2020-21": 120541,
+                  "2021-22": 124222}
 
 # aba-liga.com competition ids
 ABA_COMPS = {1: ("calendar", "ABA League"), 3: ("calendar-supercup", "ABA Supercup")}
