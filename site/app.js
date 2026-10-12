@@ -308,6 +308,10 @@
   function chips(host, options, current, onPick) {
     host.innerHTML = options.map((o) => `<button class="chip ${o.value === current ? "on" : ""}" data-v="${esc(o.value)}">${o.dot ? `<span class="dot" style="background:${o.dot}"></span>` : ""}${esc(o.label)}</button>`).join("");
     host.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => onPick(b.dataset.v)));
+    // long groups become one sideways-scrolling row on phones; keep the picked chip in view
+    host.classList.toggle("chip-row", options.length > 4);
+    const on = host.querySelector(".chip.on");
+    if (on && host.scrollWidth > host.clientWidth) host.scrollLeft = on.offsetLeft - (host.clientWidth - on.offsetWidth) / 2;
   }
 
   // ------------------------------------------------------------------ views
