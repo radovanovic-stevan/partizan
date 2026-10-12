@@ -25,7 +25,11 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 
 # (season label, EuroLeague-family competition code, season code)
+# Partizan played in neither in 2015-16 and 2016-17.
 EUROPE = [
+    *[(f"{y}-{str(y + 1)[2:]}", "E", f"E{y}") for y in range(2007, 2014)],
+    ("2014-15", "U", "U2014"),  # EuroCup
+    *[(f"{y}-{str(y + 1)[2:]}", "U", f"U{y}") for y in range(2017, 2021)],  # EuroCup
     ("2021-22", "U", "U2021"),  # EuroCup
     ("2022-23", "E", "E2022"),
     ("2023-24", "E", "E2023"),
@@ -33,8 +37,8 @@ EUROPE = [
     ("2025-26", "E", "E2025"),
     ("2026-27", "E", "E2026"),
 ]
-# aba-liga.com season ids: 21 = 2021/22 ... 26 = 2026/27
-ABA_SEASONS = {21: "2021-22", 22: "2022-23", 23: "2023-24", 24: "2024-25", 25: "2025-26", 26: "2026-27"}
+# aba-liga.com season ids: 7 = 2007/08 ... 26 = 2026/27
+ABA_SEASONS = {sid: f"{2000 + sid}-{sid + 1:02d}" for sid in range(7, 27)}
 CURRENT = "2026-27"
 # Sofascore: Partizan's team id and the unique-tournament ids we keep
 SOFA_TEAM = 6637
@@ -101,6 +105,11 @@ def fetch_europe():
             for kind in ("Boxscore", "Header", "Points"):
                 cached(base / f"{gc}_{kind.lower()}.json.gz",
                        f"https://live.euroleague.net/api/{kind}?gamecode={gc}&seasoncode={code}")
+            # older box scores leave the coach blank; the v2 game stats still name them
+            box = json.loads(gzip.decompress((base / f"{gc}_boxscore.json.gz").read_bytes()))
+            if not all(st.get("Coach") for st in box["Stats"]):
+                cached(base / f"{gc}_stats.json.gz",
+                       f"https://api-live.euroleague.net/v2/competitions/{comp}/seasons/{code}/games/{gc}/stats")
 
 
 def played_aba_ids(html, sid, cid):

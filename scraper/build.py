@@ -44,9 +44,14 @@ def title_name(el_name):
     if "," in el_name:
         last, first = [p.strip() for p in el_name.split(",", 1)]
         el_name = f"{first} {last}"
-    return " ".join(w.capitalize() if not w.endswith(".") else w.capitalize()
-                    for w in el_name.split()).replace("Mc", "Mc")
+    return " ".join(NAME_FIXES.get(w.capitalize(), w.capitalize()) for w in el_name.split())
 
+
+# players the sources spell too differently to match on their own (alias -> kept)
+SAME_PLAYER = {"Milton Palacio": "Milt Palacio", "Yann Stephane Lasme": "Stephane Lasme",
+               "Lester Mc Caleeb": "Lester Mccalebb", "Torrian Walden": "Corey Walden",
+               "Marko Dzurkovic": "Marko Djurkovic"}
+NAME_FIXES = {"Mccalebb": "McCalebb", "Mcadoo": "McAdoo"}
 
 # the EuroLeague feed sometimes spells the same coach differently
 COACH_ALIASES = {"Zelimir Obradovic": "Zeljko Obradovic"}
@@ -75,6 +80,11 @@ def is_par(name):
 
 EL_PHASES = {"RS": "Regular Season", "PI": "Play-In", "PO": "Playoffs", "FF": "Final Four",
              "8F": "Eighthfinals", "4F": "Quarterfinals", "2F": "Semifinals", "Final": "Final"}
+
+
+# play-by-play shot codes -> (made, points); feeds before 2015 split out layups, dunks and blocked shots
+SHOT_CODES = {"2FGM": (1, 2), "2FGA": (0, 2), "3FGM": (1, 3), "3FGA": (0, 3),
+              "LAYUPMD": (1, 2), "DUNK": (1, 2), "LAYUPATT": (0, 2), "2FGAB": (0, 2), "3FGAB": (0, 3)}
 
 
 def el_player(p):
@@ -160,6 +170,9 @@ def build_europe(games, boxes, bios):
                 "hasShots": False,
             }
             game["win"] = (home["score"] > away["score"]) == par_home
+            stats_f = base / f"{gc}_stats.json.gz"
+            v2 = json.loads(load(stats_f)) if stats_f.exists() else {}
+            v2_coach = {sides[s]["code"]: ((v2.get(s) or {}).get("coach") or {}).get("name") for s in ("local", "road")}
             teams = []
             for st in box["Stats"]:
                 plist = [el_player(p) for p in st["PlayersStats"]]
@@ -167,7 +180,7 @@ def build_europe(games, boxes, bios):
                 tot = el_totals(st["totr"])
                 tot["teamReb"] = (st.get("tmr") or {}).get("TotalRebounds", 0)
                 teams.append({"name": home["name"] if tcode == home["code"] else away["name"],
-                              "code": tcode, "coach": coach_name(st.get("Coach") or ""),
+                              "code": tcode, "coach": coach_name(st.get("Coach") or v2_coach.get(tcode) or ""),
                               "players": plist, "tot": tot, "par": tcode == "PAR"})
             teams.sort(key=lambda t: 0 if t["code"] == home["code"] else 1)
             shots = []
@@ -176,12 +189,11 @@ def build_europe(games, boxes, bios):
             except (json.JSONDecodeError, FileNotFoundError):
                 pts = []
             for r in pts:
-                a = r["ID_ACTION"].strip()
-                if a not in ("2FGM", "2FGA", "3FGM", "3FGA") or r["COORD_X"] is None:
+                a = SHOT_CODES.get(r["ID_ACTION"].strip())
+                if not a or r["COORD_X"] is None:
                     continue
                 shots.append([0 if r["TEAM"].strip() == home["code"] else 1,
-                              "EL" + r["ID_PLAYER"].strip(), r["COORD_X"], r["COORD_Y"],
-                              1 if a.endswith("M") else 0, int(a[0]), r["MINUTE"]])
+                              "EL" + r["ID_PLAYER"].strip(), r["COORD_X"], r["COORD_Y"], *a, r["MINUTE"]])
             game["hasShots"] = bool(shots)
             game["coach"] = next((t["coach"] for t in teams if t["par"]), None)
             game["oppCoach"] = next((t["coach"] for t in teams if not t["par"]), None)
@@ -645,7 +657,7 @@ def main():
     def toks(k):
         return {re.sub(r"d[jz]", "d", t) for t in k.split("-")}
     used = sorted(set(pid_to_key.values()))
-    alias = {}
+    alias = {name_key(a): name_key(b) for a, b in SAME_PLAYER.items()}
     for i, a in enumerate(used):
         for b in used[i + 1:]:
             ba, bb = bios.get(a, {}).get("born"), bios.get(b, {}).get("born")
@@ -665,6 +677,9 @@ def main():
                 if not cur or (f == "nat" and len(cur) == 3):
                     bios[canon][f] = v
             pid_to_key[pid] = canon
+
+    for key, name in key_name.items():
+        key_name[key] = " ".join(NAME_FIXES.get(w, w) for w in name.split())
 
     # ---- attach keys to box score rows and aggregate player lines
     lines = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
